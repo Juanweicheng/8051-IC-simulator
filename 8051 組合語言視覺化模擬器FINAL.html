@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>8051 組合語言視覺化模擬器</title>
+<style>
+:root{--bg:#eef1ee;--fg:#16201c;--mut:#5f6d66;--cd:#fff;--bd:#cfd6d1;--ac:#0b6e5a;--hot:#e8590c;--on:#0b8a6e;--led:#e03131;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1512;--fg:#e4ebe6;--mut:#93a39a;--cd:#18211d;--bd:#2c3a33;--ac:#2bb897;--hot:#ff8a3d;--on:#17a380;--led:#ff5a5a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1512;--fg:#e4ebe6;--mut:#93a39a;--cd:#18211d;--bd:#2c3a33;--ac:#2bb897;--hot:#ff8a3d;--on:#17a380;--led:#ff5a5a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;padding:12px}
+h1{font-size:19px;margin:0 0 8px}
+#bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+button,select{font:inherit;padding:5px 11px;border:1px solid var(--bd);background:var(--cd);color:var(--fg);border-radius:6px;cursor:pointer}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+label{color:var(--mut);font-size:12px}
+main{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:12px}
+@media(max-width:780px){main{grid-template-columns:1fr}}
+section{background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:10px;min-width:0}
+.h{font-size:12px;color:var(--mut);margin:10px 0 4px}
+.h:first-child{margin-top:0}
+textarea{width:100%;height:290px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:8px;resize:vertical}
+#lst{position:relative;margin:0;padding:0;list-style:none;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;max-height:440px;overflow:auto;counter-reset:n}
+#lst li{padding:1px 8px;border-radius:4px;white-space:pre-wrap;counter-increment:n}
+#lst li::before{content:counter(n);display:inline-block;width:2.2em;color:var(--mut)}
+#lst li.cur{background:var(--ac);color:#fff}
+#lst li.cur::before{color:#d7f5ec}
+.exp{margin-left:2.2em;font:12px/1.45 system-ui,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--on)}.cm{color:var(--mut)}#lst li.cur .exp,#lst li.cur .cm{color:#d7f5ec}#lst.nx .exp{display:none}#sum{font-size:12.5px;line-height:1.65;margin-top:8px;padding:8px;border:1px solid var(--bd);border-radius:6px}#sum:empty{display:none}.rom{display:flex;flex-wrap:wrap;gap:3px}.rom .c{min-width:34px}.rom .ad{flex-basis:100%;font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--mut);margin-top:3px}.ss{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}.ss .dg{text-align:center}.ss svg{width:48px;height:auto;background:#0e1311;border-radius:6px;padding:5px;display:block}.sg{fill:#27312c;transition:fill .12s}.sg.on{fill:#ff3b30}.hx{font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--mut);margin-top:2px}.ssc{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.ssc select{padding:2px 6px;font-size:12px}
+#msg{margin-top:6px;font-size:13px;color:var(--on)}
+#msg.er{color:var(--led)}
+#log{font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;min-height:84px}
+#log .ins{font-weight:700;color:var(--ac);margin-bottom:2px}
+.mut{color:var(--mut)}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.row>b{min-width:34px}
+.bits{display:flex;gap:3px}
+.bits i{font:600 14px ui-monospace,Menlo,Consolas,monospace;font-style:normal;width:28px;text-align:center;border:1px solid var(--bd);border-radius:5px;padding:0 0 2px;background:var(--bg);color:var(--mut)}
+.bits i::before{content:attr(data-n);display:block;font:9px system-ui;color:var(--mut)}
+.bits i[data-v="1"]{background:var(--on);border-color:var(--on);color:#fff}
+.bits i[data-v="1"]::before{color:#d7f5ec}
+.led i[data-v="1"]{background:var(--led);border-color:var(--led)}
+.c{display:inline-block;font:600 13px ui-monospace,Menlo,Consolas,monospace;min-width:30px;text-align:center;padding:2px 4px;border:1px solid var(--bd);border-radius:5px;background:var(--bg)}
+.g8{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;text-align:center}
+.g8 small{display:block;color:var(--mut);font-size:11px}
+.g8 .c{display:block;min-width:0}
+.ram{display:grid;grid-template-columns:2.4em repeat(16,minmax(0,1fr));gap:2px;font-size:10.5px;text-align:center}
+.ram .c{min-width:0;padding:1px 0;font-size:11px}
+.ram .c.ptr{outline:2px dashed var(--hot);outline-offset:-1px}
+.ram span.a{color:var(--mut);font:10.5px ui-monospace,Menlo,Consolas,monospace;align-self:center}
+@keyframes fl{0%{background:var(--hot);color:#fff;border-color:var(--hot);transform:scale(1.3)}100%{transform:scale(1)}}
+.fl{animation:fl .8s ease-out}
+.chip{position:fixed;z-index:9;pointer-events:none;background:var(--hot);color:#fff;font:700 13px ui-monospace,Menlo,Consolas,monospace;padding:2px 8px;border-radius:12px}
+small.n{color:var(--mut);font-size:12px}
+@media(prefers-reduced-motion:reduce){.fl{animation:none}}
+</style></head><body>
+<h1>8051 組合語言視覺化模擬器</h1>
+<div id="bar">
+<select id="smp"></select>
+<button id="asm" class="p">組譯並載入</button>
+<button id="st">單步</button>
+<button id="run">▶ 連續執行</button>
+<button id="rs">重設</button>
+<label>速度 <input id="sp" type="range" min="1" max="12" value="6"></label>
+<label><input id="ex" type="checkbox" checked> 顯示每行說明</label>
+</div>
+<main>
+<section>
+<div class="h">程式（可直接編輯，按「組譯並載入」）</div>
+<textarea id="ed" spellcheck="false"></textarea>
+<ol id="lst" hidden></ol><div id="sum"></div>
+<div id="msg"></div>
+<div class="h">這一步發生了什麼</div>
+<div id="log"></div>
+</section>
+<section>
+<div class="h">CPU</div>
+<div id="cpu"></div>
+<div class="h">內部 RAM 00H–7FH　<small class="n">虛線框 = R0／R1 指向的位址</small></div>
+<div class="ram" id="ram"></div>
+<div id="romw" hidden><div class="h">程式記憶體裡的 DB 資料（MOVC 讀取；可用 ORG 指定位址）</div><div class="rom" id="rom"></div></div>
+<div class="h">七段顯示器</div>
+<div class="ssc"><label>段碼埠 <select id="ssp"><option value=0>P0</option><option value=1 selected>P1</option><option value=2>P2</option><option value=3>P3</option></select></label><label>類型 <select id="sst"><option value=0>共陽（0 亮）</option><option value=1>共陰（1 亮）</option></select></label><label>位數 <select id="snd"><option value=1>1 位</option><option value=4>4 位掃描</option><option value=8>8 位掃描</option></select></label><label>位選埠 <select id="ssel"><option value=0>P0</option><option value=1>P1</option><option value=2>P2</option><option value=3 selected>P3</option></select></label><label>位選方式 <select id="ssm"><option value=0>一位一腳（0 選中）</option><option value=1>3-8 編碼（值 0–7）</option></select></label><label>預設接線 <select id="spre"><option value="">自訂</option><option value="a">段碼 P1／位選 P3 一位一腳（共陽）</option><option value="b">段碼 P2／位選 P1 編碼（共陰，8 位）</option></select></label></div>
+<div class="ss" id="ss"></div>
+<small class="n">段碼 bit0–bit7 依序是 a、b、c、d、e、f、g、dp。多位掃描時，位選埠的 bit0 起依序對應各位數（4 位用 bit0–bit3，8 位用 bit0–bit7），為 0 就選中該位數（bit0 在最左邊），「3-8 編碼」模式下，位選埠的低 3 位當成位數編號 0–7（例如 P1 接 74HC138）。掃描的位數在約 40000 個機器週期內沒被重新驅動就會熄滅，用來模擬視覺暫留；段碼全滅的寫入會被視為空白，不會清掉已顯示的內容。</small>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),h2=v=>(v&255).toString(16).toUpperCase().padStart(2,'0');
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const SYM={ACC:224,B:240,PSW:208,SP:129,DPL:130,DPH:131,P0:128,P1:144,P2:160,P3:176,TCON:136,TMOD:137,TL0:138,TL1:139,TH0:140,TH1:141,TF1:143,TR1:142,TF0:141,TR0:140,AC:214,F0:213,OV:210,RS1:212,RS0:211};
+const OPS=new Set('NOP MOV MOVC ADD ADDC SUBB INC DEC ANL ORL XRL CLR SETB CPL RL RR RLC RRC SWAP XCH MUL DIV JC JNC JZ JNZ JB JNB JBC SJMP LJMP AJMP DJNZ CJNE LCALL ACALL RET PUSH POP'.split(' '));
+const JM=new Set('JC JNC JZ JNZ JB JNB JBC SJMP LJMP AJMP DJNZ CJNE LCALL ACALL'.split(' '));
+const SMP={
+'減法取絕對值':`CLR C
+MOV A,#4CH      ; 十六進位數字要加 H
+SUBB A,#6EH     ; A = A - 6EH
+JNC NEXT        ; CY=0 就跳到 NEXT
+CPL A           ; CY=1：取 1 的補數
+INC A           ; 再加 1 得 2 的補數
+NEXT: MOV R1,A  ; 存到 R1
+END`,
+'LED 跑馬燈 (P1)':`      MOV A,#01H
+      MOV R2,#8
+LOOP: MOV P1,A
+      RL A
+      MOV R7,#2
+D1:   DJNZ R7,D1
+      DJNZ R2,LOOP
+      SJMP $`,
+'計時器延遲 + 查表 (MOVC)':`      MOV DPTR,#TABLE   ; DPTR 指向表格開頭
+      MOV R3,#0
+NEXT: MOV A,R3
+      MOVC A,@A+DPTR    ; 查表：A = TABLE[R3]
+      MOV P1,A          ; 輸出到 P1
+      MOV TMOD,#01H     ; Timer0 模式 1（16 位元）
+      MOV TH0,#0FCH
+      MOV TL0,#18H      ; 65536-1000，約 1000 個週期
+      SETB TR0          ; 啟動 Timer0
+      JNB TF0,$         ; 等待溢位旗標 TF0
+      CLR TR0
+      CLR TF0
+      INC R3
+      CJNE R3,#4,NEXT
+      SJMP $
+TABLE: DB 0FEH,0FDH,0FBH,0F7H`,
+'七段顯示器 0-9 查表':`      MOV DPTR,#TABLE
+      MOV R3,#0
+LOOP: MOV A,R3
+      MOVC A,@A+DPTR   ; 查表取得字型碼
+      MOV P1,A         ; 輸出到七段顯示器（共陽）
+      MOV R7,#3
+D1:   DJNZ R7,D1       ; 簡單延遲
+      INC R3
+      CJNE R3,#10,LOOP
+      SJMP $
+TABLE: DB 0C0H,0F9H,0A4H,0B0H,99H,92H,82H,0F8H,80H,90H`,
+'四位數掃描顯示 1234':`      MOV P1,#0F9H    ; 字型碼 "1"
+      CLR P3.0        ; 選中最左邊一位
+      SETB P3.0       ; 取消選中，數字會保留
+      MOV P1,#0A4H    ; 字型碼 "2"
+      CLR P3.1
+      SETB P3.1
+      MOV P1,#0B0H    ; 字型碼 "3"
+      CLR P3.2
+      SETB P3.2
+      MOV P1,#99H     ; 字型碼 "4"
+      CLR P3.3
+      SETB P3.3
+      SJMP $`,
+'八位數掃描顯示 12345678':`      MOV DPTR,#TABLE
+      MOV R3,#0         ; 目前掃描到第幾位（0~7）
+      MOV R4,#0FEH      ; 位選碼：只有 bit0 為 0
+LOOP: MOV A,R3
+      MOVC A,@A+DPTR    ; 查表取得這一位的字型碼
+      MOV P1,A          ; 送出段碼
+      MOV P3,R4         ; 選中這一位
+      MOV P3,#0FFH      ; 關閉位選，數字會保留
+      MOV A,R4
+      RL A              ; 位選左移到下一位
+      MOV R4,A
+      INC R3
+      CJNE R3,#8,LOOP
+      SJMP $
+TABLE: DB 0F9H,0A4H,0B0H,99H,92H,82H,0F8H,80H`,
+'實體板範例（P2 段碼／P1 編碼位選）':`ORG 0050H
+TABLE:   DB 3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,6FH   ; 共陰極 0~9 字型碼
+ORG 0060H
+CONTENT: DB 1,4,3,2,3,0,1,1                          ; 要顯示的數字
+ORG 0000H
+AGAIN:
+        MOV R5,#0
+LOOP:
+        MOV P2,#00H        ; 先熄滅，避免残影
+        MOV P1,R5          ; P1 = 位數編號 0~7
+        MOV DPTR,#CONTENT
+        MOV A,R5
+        MOVC A,@A+DPTR     ; 查出這一位要顯示的數字
+        MOV DPTR,#TABLE
+        MOVC A,@A+DPTR     ; 數字 -> 字型碼
+        MOV P2,A           ; 送出段碼
+        LCALL DELAY
+        INC R5
+        CJNE R5,#8,LOOP
+        SJMP AGAIN
+DELAY:
+        MOV R6,#2
+D1:     MOV R7,#250
+D2:     DJNZ R7,D2
+        DJNZ R6,D1
+        RET
+        END`,
+'RAM 區塊填值':`      MOV R0,#30H
+      MOV R7,#6
+      MOV A,#0AAH
+FILL: MOV @R0,A    ; 間接定址寫入 RAM
+      CPL A
+      INC R0
+      DJNZ R7,FILL
+      SJMP $`};
+let CN=0,CODE=[],SRC=[],M=new Uint8Array(256),PC=0,prog=[],labels={},EQ={},ex={},busy=0,running=0,halted=0,gen=0,editing=1;
+const rb=()=>(M[208]>>3&3)*8,D=()=>Math.max(0,1150-$('#sp').value*100);
+function N(t){t=t.trim().toUpperCase();if(t in EQ)return EQ[t];let v;
+ if(/^[0-9][0-9A-F]*H$/.test(t))v=parseInt(t,16);else if(/^0X[0-9A-F]+$/.test(t))v=parseInt(t,16);
+ else if(/^[01]+B$/.test(t))v=parseInt(t,2);else if(/^[0-9]+D?$/.test(t))v=parseInt(t,10);
+ else if(/^'.'$/.test(t))v=t.charCodeAt(1);
+ else throw Error('無法解析「'+t+'」：十六進位請加 H 後綴（字母開頭要補 0，例如 0AFH）');
+ return v}
+function P(s){s=s.trim();const u=s.toUpperCase();let m;
+ if(u=='A'||u=='C'||u=='AB'||u=='DPTR')return{t:u};
+ if(u=='CY')return{t:'C'};if(u=='@A+DPTR')return{t:'ADPTR'};if(u=='@A+PC')throw Error('目前只支援 MOVC A,@A+DPTR');
+ if(m=u.match(/^R([0-7])$/))return{t:'R',v:+m[1]};
+ if(m=u.match(/^@R([01])$/))return{t:'@',v:+m[1]};
+ if(u[0]=='#')return{t:'#',v:N(u.slice(1))};
+ if(u.includes('.')){const[p,q]=u.split('.'),x=N(p),i=+q;
+  if(!(i>=0&&i<8)||!((x>=32&&x<48)||(x>=128&&x%8==0)))throw Error('位元定址錯誤：'+s);
+  return{t:'b',v:x<48?(x-32)*8+i:x+i}}
+ return{t:'d',v:N(u)}}
+function asm(src){prog=[];labels={};CODE=[];EQ={...SYM};const L=src.split('\n');SRC=L;let cur=0,nl=[],da=0;
+ try{for(let i=0;i<L.length;i++){cur=i;let t=L[i].replace(/;.*/,'').trim();if(!t)continue;let m=t.match(/^(\w+)\s+EQU\s+(.+)$/i);
+  if(m){EQ[m[1].toUpperCase()]=N(m[2]);continue}
+  while(m=t.match(/^(\w+):\s*(.*)$/)){labels[m[1].toUpperCase()]=prog.length;nl.push(m[1].toUpperCase());t=m[2]}
+  if(!t)continue;m=t.match(/^(\w+)\s*(.*)$/);const op=m[1].toUpperCase();
+  if(op=='END')break;if(op=='ORG'){da=N(m[2]);continue}if(op=='DB'){nl.forEach(n=>{delete labels[n];EQ[n]=da});nl=[];m[2].split(',').forEach(x=>{x=x.trim();if(x.charCodeAt(0)==39&&x.length>3)for(const ch of x.slice(1,-1))CODE[da++]=ch.charCodeAt(0);else CODE[da++]=N(x)&255});continue}
+  if(!OPS.has(op))throw Error('不支援的指令：'+op);
+  nl=[];prog.push({op,ln:i,raw:m[2],srcl:L[i].replace(/;.*/,'').trimEnd()})}
+ prog.forEach((p,k)=>{cur=p.ln;const parts=p.raw?p.raw.split(','):[];
+  if(JM.has(p.op)){const l=parts.pop().trim().toUpperCase();p.l=l=='$'?k:labels[l];p.lab=l;if(p.l==null)throw Error('找不到標籤 '+l)}
+  p.o=parts.map(P)})}catch(e){throw Error('第 '+(cur+1)+' 行：'+e.message)}}
+const ba=b=>b<128?[32+(b>>3),b&7]:[b&248,b&7];
+const ad=o=>o.t=='A'?224:o.t=='R'?rb()+o.v:o.t=='@'?M[rb()+o.v]:o.v;
+const g=o=>{if(o.t=='#')return o.v&255;const x=ad(o);if(ex.src==null)ex.src=x;return M[x]};
+const s=(o,v)=>{v&=255;const x=ad(o);M[x]=v;ex.dst=x;ex.val=v};
+const bt=x=>{const[y,i]=ba(x);return M[y]>>i&1};
+const gb=x=>{const y=ba(x)[0];if(ex.src==null)ex.src=y;return bt(x)};
+const sb=(x,v)=>{const[y,i]=ba(x);M[y]=M[y]&~(1<<i)|(v?1<<i:0);ex.dst=y;ex.val=M[y]};
+function run(p){const o=p.o,a=o[0],b=o[1],cy=()=>M[208]>>7&1,pf=(i,v)=>{M[208]=M[208]&~(1<<i)|(v?1<<i:0)},jmp=()=>{PC=p.l},Bi=x=>x.t=='C'?215:x.v,V=x=>M[ad(x)];
+ switch(p.op){
+ case'NOP':break;
+ case'MOV':
+  if(a.t=='DPTR'){M[131]=b.v>>8;M[130]=b.v;ex.dst=130;ex.val=b.v&255;break}
+  if(a.t=='C'){sb(215,gb(Bi(b)));break}
+  if(b.t=='C'){sb(Bi(a),cy());break}
+  s(a,g(b));break;
+ case'MOVC':{const x=(M[131]<<8|M[130])+M[224];ex.rom=x;s(a,CODE[x]||0);ex.note='A = 程式記憶體['+h2(x>>8)+h2(x)+'H] = '+h2(CODE[x]||0)+'H';break}
+ case'ADD':case'ADDC':{const y=g(b),x=M[224],c=p.op=='ADDC'?cy():0,r=x+y+c;
+  pf(7,r>255);pf(6,(x&15)+(y&15)+c>15);pf(2,((x&127)+(y&127)+c>127)!=(r>255));s(a,r);
+  ex.note=h2(x)+'H + '+h2(y)+'H'+(c?' + CY':'')+' = '+h2(r)+'H';break}
+ case'SUBB':{const y=g(b),x=M[224],c=cy(),r=x-y-c,sr=(x<<24>>24)-(y<<24>>24)-c;
+  pf(7,r<0);pf(6,(x&15)-(y&15)-c<0);pf(2,sr<-128||sr>127);s(a,r);
+  ex.note=h2(x)+'H − '+h2(y)+'H'+(c?' − CY':'')+' = '+h2(r)+'H'+(r<0?'（借位 CY=1）':'');break}
+ case'INC':case'DEC':{const d=p.op=='INC'?1:-1;
+  if(a.t=='DPTR'){const v=((M[131]<<8|M[130])+1)&65535;M[131]=v>>8;M[130]=v;ex.dst=130;ex.val=v&255}else s(a,g(a)+d);break}
+ case'ANL':case'ORL':case'XRL':{
+  if(a.t=='C'){const v=gb(Bi(b));sb(215,p.op=='ANL'?cy()&v:cy()|v);break}
+  const f={ANL:(x,y)=>x&y,ORL:(x,y)=>x|y,XRL:(x,y)=>x^y}[p.op],y=g(b);s(a,f(V(a),y));break}
+ case'CLR':if(a.t=='A')s(a,0);else sb(Bi(a),0);break;
+ case'SETB':sb(Bi(a),1);break;
+ case'CPL':if(a.t=='A')s(a,~M[224]);else sb(Bi(a),bt(Bi(a))^1);break;
+ case'RL':s(a,M[224]<<1|M[224]>>7);break;
+ case'RR':s(a,M[224]>>1|M[224]<<7);break;
+ case'RLC':{const x=M[224],c=cy();pf(7,x>>7);s(a,x<<1|c);break}
+ case'RRC':{const x=M[224],c=cy();pf(7,x&1);s(a,x>>1|c<<7);break}
+ case'SWAP':s(a,M[224]<<4|M[224]>>4);break;
+ case'XCH':{const y=g(b),x=M[224];s(b,x);s(a,y);break}
+ case'MUL':{const r=M[224]*M[240];M[224]=r;M[240]=r>>8;pf(7,0);pf(2,r>255);ex.dst=240;ex.val=r>>8;ex.note='A × B = '+h2(r>>8)+h2(r)+'H';break}
+ case'DIV':{const x=M[224],y=M[240];pf(7,0);if(!y)pf(2,1);else{M[224]=Math.floor(x/y);M[240]=x%y;pf(2,0);ex.dst=240;ex.val=x%y}break}
+ case'JC':if(cy())jmp();break;
+ case'JNC':if(!cy())jmp();break;
+ case'JZ':if(!M[224])jmp();break;
+ case'JNZ':if(M[224])jmp();break;
+ case'JB':if(gb(Bi(a)))jmp();break;
+ case'JNB':if(!gb(Bi(a)))jmp();break;
+ case'JBC':if(gb(Bi(a))){sb(Bi(a),0);jmp()}break;
+ case'SJMP':case'LJMP':case'AJMP':jmp();break;
+ case'DJNZ':{const v=(g(a)-1)&255;s(a,v);if(v)jmp();break}
+ case'CJNE':{const x=g(a),y=g(b);pf(7,x<y);if(x!=y)jmp();break}
+ case'LCALL':case'ACALL':{const r=PC;M[129]++;M[M[129]]=r;M[129]++;M[M[129]]=r>>8;ex.dst=M[129];ex.val=r>>8;jmp();break}
+ case'RET':{const hi=M[M[129]];M[129]--;const lo=M[M[129]];M[129]--;PC=hi<<8|lo;break}
+ case'PUSH':M[129]++;ex.src=ad(a);M[M[129]]=M[ex.src];ex.dst=M[129];ex.val=M[ex.src];break;
+ case'POP':{const v=M[M[129]];ex.src=M[129];M[129]--;s(a,v);break}
+ }}
+function cyc(p){const o=p.op,[a,b]=p.o;if(o=='MUL'||o=='DIV')return 4;if(JM.has(o)||/^(RET|PUSH|POP|MOVC)$/.test(o))return 2;if(o=='MOV'&&(a.t=='DPTR'||(a.t=='d'&&b.t!='A')||(b.t=='d'&&a.t!='A')))return 2;return o=='INC'&&a.t=='DPTR'?2:1}
+function tick(n){CN+=n;for(let t=0;t<2;t++){const tm=M[137];if(!(M[136]>>(4+2*t)&1)||(tm>>(4*t+2)&1))continue;const md=tm>>(4*t)&3,L=138+t,H=140+t;
+ for(let c=0;c<n;c++){if(md==1){const v=(M[H]<<8|M[L])+1;M[H]=v>>8;M[L]=v;if(v>65535)M[136]|=1<<(5+2*t)}else if(md==2){M[L]++;if(!M[L]){M[L]=M[H];M[136]|=1<<(5+2*t)}}}}}
+function par(){let q=M[224];q^=q>>4;q^=q>>2;q^=q>>1;M[208]=M[208]&~1|(q&1)}
+const nm=a=>({224:'A',240:'B',129:'SP',130:'DPL',131:'DPH',128:'P0',144:'P1',160:'P2',176:'P3',136:'TCON',137:'TMOD',138:'TL0',139:'TL1',140:'TH0',141:'TH1'})[a]||(a>=rb()&&a<rb()+8?'R'+(a-rb()):h2(a)+'H');
+function fl(e){e.classList.remove('fl');void e.offsetWidth;e.classList.add('fl')}
+function msg(t,er){$('#msg').textContent=t;$('#msg').className=er?'er':''}
+function render(old){
+ $$('[data-r]').forEach(e=>e.dataset.a=rb()+ +e.dataset.r);
+ $$('[data-a]').forEach(e=>{const a=+e.dataset.a,v=M[a],o=old?old[a]:v;
+  if(e.classList.contains('bits')){[...e.children].forEach((c,i)=>{const n=v>>(7-i)&1;c.dataset.v=n;c.textContent=n;if(old&&n!=(o>>(7-i)&1))fl(c)})}
+  else{e.textContent=h2(v);if(v!=o)fl(e)}
+  if(e.closest('.ram'))e.classList.toggle('ptr',a==M[rb()]||a==M[rb()+1])});
+ $('#cn').textContent=CN;sevenSeg();$('#pc').textContent=PC<prog.length?PC+'（第 '+(prog[PC].ln+1)+' 行）':'結束';
+ const cl=PC<prog.length&&!halted?prog[PC].ln:-1;[...$('#lst').children].forEach((li,i)=>{const on=i==cl;li.classList.toggle('cur',on);if(on)$('#lst').scrollTop=Math.max(0,li.offsetTop-120)});
+ if(!editing){$('#st').disabled=halted;$('#run').disabled=halted&&!running}}
+function fly(i){if(ex.dst==null||ex.val==null||!D())return 0;
+ const t=document.querySelector('[data-a="'+ex.dst+'"]'),f=ex.rom!=null?document.querySelector('[data-c="'+ex.rom+'"]'):ex.src!=null?document.querySelector('[data-a="'+ex.src+'"]'):$('#lst').children[prog[i].ln];
+ if(!t||!f||f===t)return 0;const r=f.getBoundingClientRect(),q=t.getBoundingClientRect(),c=document.createElement('div'),d=D();
+ c.className='chip';c.textContent=h2(ex.val);c.style.left=r.left+'px';c.style.top=r.top+'px';document.body.append(c);
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{c.style.transition='transform '+d+'ms ease';c.style.transform='translate('+(q.left-r.left)+'px,'+(q.top-r.top)+'px)'}));
+ setTimeout(()=>c.remove(),d+60);return 1}
+function logit(old,p,i){const L=['<div class=ins>'+esc(p.srcl.trim())+'</div>','<div class=mut>'+esc(explain(p))+'</div>'];if(ex.note)L.push('<div>'+esc(ex.note)+'</div>');
+ for(let a=0;a<256;a++)if(M[a]!=old[a]){
+  if(a==208){const x=M[a]^old[a];[['CY',7],['AC',6],['OV',2],['F0',5],['RS1',4],['RS0',3]].forEach(([n,b])=>{if(x>>b&1)L.push('<div>'+n+': '+(old[a]>>b&1)+' → '+(M[a]>>b&1)+'</div>')})}
+  else L.push('<div>'+nm(a)+': '+h2(old[a])+'H → '+h2(M[a])+'H</div>')}
+ if(L.length<=2+(ex.note?1:0))L.push('<div class=mut>暫存器與記憶體沒有變化</div>');
+ if(PC!=i+1&&!halted)L.push('<div>跳轉到：'+esc(prog[PC]?prog[PC].srcl.trim():'程式結尾')+'</div>');
+ $('#log').innerHTML=L.join('')}
+function step(cb){
+ if(busy)return;if(halted||PC>=prog.length){halted=1;render();cb&&cb();return}
+ busy=1;const old=M.slice(),i=PC,p=prog[i],g0=gen;ex={src:null,dst:null,val:null};PC++;
+ try{run(p);tick(cyc(p))}catch(e){msg('執行錯誤：'+e.message,1);halted=1}
+ if(PC==i&&/^(JB|JNB|JC|JNC|JZ|JNZ|DJNZ|CJNE)$/.test(p.op)){let w=0;const c0=CN;try{while(PC==i&&w++<2e5){PC=i+1;run(p);tick(cyc(p))}}catch(e){}ex.note='原地等待，已快轉 '+(CN-c0)+' 個機器週期';if(PC==i){halted=1;ex.note='原地等待的條件永遠不會成立，程式停住'}}
+ par();
+ if(/^[SLA]JMP$/.test(p.op)&&p.l==i){halted=1;ex.note='停在 SJMP $（無窮迴圈），程式結束'}
+ else if(PC>=prog.length){halted=1;ex.note='程式執行完畢'}
+ logit(old,p,i);
+ const d=fly(i)?D():Math.min(120,D());
+ setTimeout(()=>{if(g0!=gen)return;render(old);if(ex.rom!=null){const e=document.querySelector('[data-c="'+ex.rom+'"]');e&&fl(e)}busy=0;cb&&cb()},d)}
+function loop(){if(!running||halted){running=0;$('#run').textContent='▶ 連續執行';render();return}step(()=>setTimeout(loop,D()?40:0))}
+function rst(){gen++;busy=0;running=0;halted=0;M.fill(0);CN=0;DG=[null,null,null,null,null,null,null,null];TS=[0,0,0,0,0,0,0,0];M[129]=7;[128,144,160,176].forEach(a=>M[a]=255);PC=0;
+ $('#log').innerHTML='<div class=mut>按「單步」或「連續執行」開始</div>';$('#run').textContent='▶ 連續執行';render()}
+function setMode(e){editing=e;$('#ed').hidden=!e;$('#lst').hidden=e;$('#sum').hidden=e;$('#asm').textContent=e?'組譯並載入':'編輯程式';$('#st').disabled=$('#run').disabled=e}
+const SFRN={224:'A',240:'B',129:'SP',130:'DPL',131:'DPH',128:'P0',144:'P1',160:'P2',176:'P3',208:'PSW',136:'TCON',137:'TMOD',138:'TL0',139:'TL1',140:'TH0',141:'TH1'},sn=a=>SFRN[a]||h2(a)+'H',bn=v=>{const[y,i]=ba(v);return sn(y)+'.'+i};
+const an=o=>o.t=='A'?'A':o.t=='C'?'CY':o.t=='R'?'R'+o.v:o.t=='@'?'@R'+o.v+'（R'+o.v+' 所指的 RAM）':o.t=='#'?(o.v>255?h2(o.v>>8)+h2(o.v):h2(o.v))+'H':o.t=='b'?'位元 '+bn(o.v):o.t=='d'?sn(o.v):o.t=='AB'?'A、B':o.t=='ADPTR'?'@A+DPTR':o.t;
+function explain(p){const[a,b]=p.o,l=p.lab,T={NOP:()=>'什麼都不做',
+MOV:()=>a.t=='DPTR'?'把 '+an(b)+' 載入 DPTR（16 位元）':b.t=='#'?'把 '+an(b)+' 載入 '+an(a):'把 '+an(b)+' 的值複製到 '+an(a),
+ADD:()=>'A = A + '+an(b)+'，並更新 CY、AC、OV',ADDC:()=>'A = A + '+an(b)+' + CY',
+SUBB:()=>'A = A − '+an(b)+' − CY；不夠減時 CY=1（借位）',
+INC:()=>an(a)+' 加 1',DEC:()=>an(a)+' 減 1',
+ANL:()=>an(a)+' = '+an(a)+' AND '+an(b)+'（逐位元）',ORL:()=>an(a)+' = '+an(a)+' OR '+an(b)+'（逐位元）',XRL:()=>an(a)+' = '+an(a)+' XOR '+an(b)+'（逐位元）',
+CLR:()=>a.t=='A'?'A 清為 00H':an(a)+' 清為 0',SETB:()=>an(a)+' 設為 1',
+CPL:()=>a.t=='A'?'A 每個位元反相（1 的補數）':an(a)+' 反相',
+RL:()=>'A 左移一位，最高位繞到最低位',RR:()=>'A 右移一位，最低位繞到最高位',
+RLC:()=>'A 連同 CY 一起左旋一位（9 位元）',RRC:()=>'A 連同 CY 一起右旋一位（9 位元）',
+SWAP:()=>'A 的高 4 位元與低 4 位元互換',XCH:()=>'A 與 '+an(b)+' 的內容互換',
+MUL:()=>'A × B：低位元組放 A，高位元組放 B',DIV:()=>'A ÷ B：商放 A，餘數放 B',
+JC:()=>'若 CY=1 跳到 '+l+'，否則往下執行',JNC:()=>'若 CY=0 跳到 '+l+'，否則往下執行',
+JZ:()=>'若 A=0 跳到 '+l+'，否則往下執行',JNZ:()=>'若 A≠0 跳到 '+l+'，否則往下執行',
+JB:()=>'若 '+an(a)+'=1 跳到 '+l+'，否則往下執行',JNB:()=>'若 '+an(a)+'=0 跳到 '+l+'，否則往下執行',
+JBC:()=>'若 '+an(a)+'=1，先清為 0 再跳到 '+l,
+SJMP:()=>l=='$'?'停在這一行不斷重複（程式結束）':'無條件跳到 '+l,
+DJNZ:()=>an(a)+' 減 1，結果不為 0 就跳到 '+l+'（常用來做迴圈或延遲）',
+CJNE:()=>'比較 '+an(a)+' 與 '+an(b)+'：不相等就跳到 '+l+'；前者較小時 CY=1',
+LCALL:()=>'呼叫副程式 '+l+'，返回位置存入堆疊',RET:()=>'從堆疊取回返回位置，回到呼叫處',
+PUSH:()=>'SP 加 1，把 '+an(a)+' 放入堆疊',POP:()=>'把堆疊頂端取出放入 '+an(a)+'，SP 減 1'};
+T.MOVC=()=>'A = 程式記憶體[DPTR + A]（查表，資料來自 DB）';T.LJMP=T.AJMP=T.SJMP;T.ACALL=T.LCALL;return(T[p.op]||(()=>''))()}
+function buildList(){const m={};prog.forEach(p=>m[p.ln]=p);
+ $('#lst').innerHTML=SRC.map((t,i)=>{const k=t.indexOf(';'),h=k<0?esc(t):esc(t.slice(0,k))+'<span class=cm>'+esc(t.slice(k))+'</span>',p=m[i];
+  return '<li>'+(h||' ')+(p?'<div class=exp>↳ '+esc(explain(p))+'</div>':'')+'</li>'}).join('');{let h='',pv=-2;CODE.forEach((v,i)=>{if(i!=pv+1)h+='<span class=ad>'+h2(i>>8)+h2(i)+'H</span>';h+='<span class=c data-c='+i+'>'+h2(v)+'</span>';pv=i});$('#rom').innerHTML=h}$('#romw').hidden=!CODE.length;buildSum()}
+function buildSum(){const u=new Set,L=[];
+ prog.forEach((p,k)=>{p.o.forEach(o=>{if(o.t!='#')u.add(o.t=='@'?'@R'+o.v:o.t=='b'?bn(o.v):an(o))});
+  if(p.lab=='$')L.push('第 '+(p.ln+1)+' 行 '+p.op+' $：程式停在這裡');
+  else if(p.lab){const n='第 '+(p.ln+1)+' 行 '+p.op;L.push(/CALL/.test(p.op)?n+' 呼叫副程式 '+p.lab:p.l<=k?n+' 往回跳到 '+p.lab+'：形成迴圈':n+' 向下跳到 '+p.lab+'：條件分支')}});
+ $('#sum').innerHTML='<b>程式摘要</b>：共 '+prog.length+' 條指令，用到 '+[...u].join('、')+'<br>'+(L.length?L.join('<br>'):'沒有跳躍，由上往下執行一次')}
+let DG=[null,null,null,null,null,null,null,null],TS=[0,0,0,0,0,0,0,0],POV=40000;
+const SG=['10,6 14,2 46,2 50,6 46,10 14,10','54,10 58,14 58,42 54,46 50,42 50,14','54,54 58,58 58,86 54,90 50,86 50,58','10,94 14,90 46,90 50,94 46,98 14,98','6,54 10,58 10,86 6,90 2,86 2,58','6,10 10,14 10,42 6,46 2,42 2,14','10,50 14,46 46,46 50,50 46,54 14,54'];
+$('#ss').innerHTML=[0,1,2,3,4,5,6,7].map(()=>'<div class=dg><svg viewBox="0 0 68 102">'+SG.map(p=>'<polygon class=sg points="'+p+'"/>').join('')+'<circle class=sg cx=62 cy=96 r=4></circle></svg><div class=hx>--</div></div>').join('');
+function sevenSeg(){const pt=[128,144,160,176],seg=M[pt[$('#ssp').value]],n=+$('#snd').value,sel=M[pt[$('#ssel').value]],ca=$('#sst').value=='0',cd=$('#ssm').value=='1',off=ca?255:0;
+ if(n==1){DG[0]=seg;TS[0]=CN}else if(seg!=off){if(cd){const i=sel&7;if(i<n){DG[i]=seg;TS[i]=CN}}else for(let i=0;i<n;i++)if(!(sel>>i&1)){DG[i]=seg;TS[i]=CN}}
+ $$('#ss .dg').forEach((e,i)=>{e.hidden=i>=n;const v=n==1||CN-TS[i]<=POV?DG[i]:null;e.querySelectorAll('.sg').forEach((s,b)=>s.classList.toggle('on',v!=null&&(v>>b&1)==(ca?0:1)));e.querySelector('.hx').textContent=v==null?'--':h2(v)+'H'})}
+['#ssp','#sst','#snd','#ssel','#ssm'].forEach(s=>{$(s).onchange=sevenSeg});$('#spre').onchange=()=>{const v=$('#spre').value;if(v=='a'){$('#ssp').value=1;$('#sst').value=0;$('#ssel').value=3;$('#ssm').value=0}else if(v=='b'){$('#ssp').value=2;$('#sst').value=1;$('#snd').value=8;$('#ssel').value=1;$('#ssm').value=1}DG=[null,null,null,null,null,null,null,null];sevenSeg()};
+function bitsRow(l,a,n,c=''){return '<div class=row><b>'+l+'</b><span class="bits '+c+'" data-a='+a+'>'+n.map(x=>'<i data-n="'+x+'">0</i>').join('')+'</span><span class=c data-a='+a+'>00</span></div>'}
+const b7=[7,6,5,4,3,2,1,0];
+$('#cpu').innerHTML=bitsRow('A',224,b7)+bitsRow('B',240,b7)+bitsRow('PSW',208,['CY','AC','F0','RS1','RS0','OV','-','P'])+bitsRow('P1',144,b7,'led')+bitsRow('TCON',136,['TF1','TR1','TF0','TR0','IE1','IT1','IE0','IT0'])+'<div class=row><b>TMOD</b><span class=c data-a=137>00</span><b>T0</b><span class=c data-a=140>00</span><span class=c data-a=138>00</span><b>T1</b><span class=c data-a=141>00</span><span class=c data-a=139>00</span></div>'+
+ '<div class=row><b>PC</b><span class=c id=pc style="min-width:96px">0</span><b>週期</b><span class=c id=cn>0</span><b>SP</b><span class=c data-a=129>07</span><b>DPTR</b><span class=c data-a=131>00</span><span class=c data-a=130>00</span></div>'+
+ '<div class=h>暫存器組 R0–R7（依 PSW 的 RS1、RS0 切換）</div><div class=g8>'+b7.slice().reverse().map(i=>'<div><small>R'+i+'</small><span class=c data-r='+i+'>00</span></div>').join('')+'</div>';
+let rh='<span></span>'+[...Array(16).keys()].map(i=>'<span class=a>'+i.toString(16).toUpperCase()+'</span>').join('');
+for(let r=0;r<8;r++){rh+='<span class=a>'+h2(r*16)+'</span>';for(let c=0;c<16;c++)rh+='<span class=c data-a='+(r*16+c)+'>00</span>'}
+$('#ram').innerHTML=rh;
+$('#smp').innerHTML=['我的程式',...Object.keys(SMP)].map(k=>'<option>'+k+'</option>').join('');
+$('#smp').onchange=()=>{$('#ed').value=SMP[$('#smp').value]??mine();{const k=$('#smp').value;if(k.startsWith('七段'))$('#snd').value=1;else if(k.startsWith('四位'))$('#snd').value=4;else if(k.startsWith('八位'))$('#snd').value=8;else if(k.startsWith('實體板')){$('#spre').value='b';$('#spre').onchange()}sevenSeg()}if(!editing){running=0;gen++;busy=0;setMode(1);msg('')}};
+$('#asm').onclick=()=>{if(!editing){running=0;gen++;busy=0;setMode(1);msg('');return}
+ try{asm($('#ed').value)}catch(e){msg(e.message,1);return}
+ buildList();try{localStorage.setItem('s8051',$('#ed').value)}catch(e){}if($('#ed').value!=SMP[$('#smp').value])$('#smp').value='我的程式';setMode(0);rst();msg('組譯成功：共 '+prog.length+' 條指令')};
+$('#st').onclick=()=>{if(!running)step()};
+$('#run').onclick=()=>{if(running){running=0;$('#run').textContent='▶ 連續執行'}else{running=1;$('#run').textContent='⏸ 暫停';loop()}};
+$('#rs').onclick=()=>{if(!editing)rst()};
+const mine=()=>{try{return localStorage.getItem('s8051')||''}catch(e){return ''}};
+if(mine()){$('#ed').value=mine();$('#smp').value='我的程式'}else{$('#ed').value=SMP['減法取絕對值'];$('#smp').value='減法取絕對值'}
+$('#ex').onchange=()=>$('#lst').classList.toggle('nx',!$('#ex').checked);
+$('#asm').click();
+</script></body></html>
